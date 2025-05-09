@@ -36,7 +36,12 @@ echo "set -x PATH_TO_FX ~/javafx-sdk-17/lib" >> ~/.config/fish/config.fish
 ```
 
 ```
-javac --module-path $PATH_TO_FX --add-modules javafx.controls,javafx.fxml .java
+javac TicTacToeServer.java
 
-java --module-path $PATH_TO_FX --add-modules javafx.controls,javafx.fxml InfiniteTicTacToeWithMenu
+java TicTacToeServer 12345
+```
+
+```
+javac --module-path $PATH_TO_FX --add-modules javafx.controls,javafx.graphics InfiniteTicTacToeClient.java
+java --module-path $PATH_TO_FX --add-modules javafx.controls,javafx.graphics InfiniteTicTacToeClient
 ```
