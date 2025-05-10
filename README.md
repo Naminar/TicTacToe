@@ -1,5 +1,23 @@
 # TicTacToe
 
+## Quick start
+
+To compile all targets.
+```
+make
+```
+
+To run server.
+```
+make run-server
+```
+
+To run player client.
+```
+make run-client
+```
+
+## Detailed
 
 ```
 sudo apt update
