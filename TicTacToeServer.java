@@ -2,9 +2,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -43,6 +47,7 @@ public class TicTacToeServer {
         try {
             serverSocket = new ServerSocket(port);
             System.out.println("Сервер \"Крестики-нолики\" запущен на порту " + port);
+            printServerAddresses();
 
             while (running) {
                 if (clients.size() < 2) {
@@ -76,6 +81,37 @@ public class TicTacToeServer {
         }
     }
 
+    private void printServerAddresses() {
+        System.out.println("Клиенты могут подключаться по следующим адресам:");
+        try {
+
+            System.out.println("- localhost:" + port);
+            System.out.println("- 127.0.0.1:" + port);
+
+            Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
+            for (NetworkInterface netint : Collections.list(nets)) {
+                if (netint.isLoopback() || !netint.isUp() || netint.isVirtual()) {
+                    continue;
+                }
+                Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
+                for (InetAddress inetAddress : Collections.list(inetAddresses)) {
+
+
+                    if (inetAddress.isSiteLocalAddress() && !inetAddress.isLoopbackAddress()) {
+
+                        if (inetAddress.getHostAddress().matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) {
+                            System.out.println("- " + inetAddress.getHostAddress() + ":" + port + " (Интерфейс: " + netint.getDisplayName() + ")");
+                        }
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            System.err.println("Не удалось получить IP-адреса сетевых интерфейсов: " + e.getMessage());
+        }
+        System.out.println("--------------------------------------------------");
+    }
+
+
     private void assignPlayerAndStartHandler(Socket clientSocket) {
         Player symbol = clients.containsKey(Player.X) ? Player.O : Player.X;
         ClientHandler handler = new ClientHandler(clientSocket, symbol, this);
@@ -86,13 +122,14 @@ public class TicTacToeServer {
             handler.sendMessage("WAITING_FOR_OPPONENT");
         }
 
+
     }
 
     public void stopServer() {
         running = false;
         stopServerInternal();
     }
-    
+
     private void stopServerInternal() {
         System.out.println("Остановка сервера...");
         running = false;
@@ -111,19 +148,17 @@ public class TicTacToeServer {
 
     public synchronized void startGameProcedure() {
         boardDataServer.clear();
-        
+
         if (lastWinner != null) {
             currentPlayerServer = lastWinner;
             System.out.println("Предыдущий победитель (" + lastWinner + ") ходит первым.");
-
-
         } else {
             currentPlayerServer = Player.X;
             System.out.println("Новая игра или предыдущая ничья, X ходит первым.");
         }
-        
+
         gameRunning = true;
-        
+
         broadcastMessage("NEW_GAME_CONFIRMED");
         broadcastBoard();
         broadcastTurn();
@@ -154,16 +189,16 @@ public class TicTacToeServer {
             broadcastMessage("GAME_OVER " + player.name());
             gameRunning = false;
         } else if (isBoardFull()) {
-             System.out.println("Ничья! Доска заполнена (условное ограничение).");
-             lastWinner = null;
-             broadcastMessage("GAME_OVER DRAW");
-             gameRunning = false;
+            System.out.println("Ничья! Доска заполнена (условное ограничение).");
+            lastWinner = null;
+            broadcastMessage("GAME_OVER DRAW");
+            gameRunning = false;
         } else {
             currentPlayerServer = currentPlayerServer.opposite();
             broadcastTurn();
         }
     }
-    
+
     private boolean isBoardFull() {
         return boardDataServer.size() >= 200;
     }
@@ -173,15 +208,15 @@ public class TicTacToeServer {
             requester.sendMessage("ERROR Недостаточно игроков для новой игры.");
             return;
         }
-        System.out.println("Игрок " + requester.getSymbol() + " ("+requester.getPlayerName()+") запросил новую игру.");
+        System.out.println("Игрок " + requester.getSymbol() + " (" + requester.getPlayerName() + ") запросил новую игру.");
         startGameProcedure();
     }
 
     public boolean checkWinServer(int r, int c, Player p) {
-        if (countConsecutiveServer(r,c,p,0,1) + countConsecutiveServer(r,c,p,0,-1) - 1 >= WIN_LENGTH) return true;
-        if (countConsecutiveServer(r,c,p,1,0) + countConsecutiveServer(r,c,p,-1,0) - 1 >= WIN_LENGTH) return true;
-        if (countConsecutiveServer(r,c,p,1,1) + countConsecutiveServer(r,c,p,-1,-1) - 1 >= WIN_LENGTH) return true;
-        if (countConsecutiveServer(r,c,p,1,-1) + countConsecutiveServer(r,c,p,-1,1) - 1 >= WIN_LENGTH) return true;
+        if (countConsecutiveServer(r, c, p, 0, 1) + countConsecutiveServer(r, c, p, 0, -1) - 1 >= WIN_LENGTH) return true;
+        if (countConsecutiveServer(r, c, p, 1, 0) + countConsecutiveServer(r, c, p, -1, 0) - 1 >= WIN_LENGTH) return true;
+        if (countConsecutiveServer(r, c, p, 1, 1) + countConsecutiveServer(r, c, p, -1, -1) - 1 >= WIN_LENGTH) return true;
+        if (countConsecutiveServer(r, c, p, 1, -1) + countConsecutiveServer(r, c, p, -1, 1) - 1 >= WIN_LENGTH) return true;
         return false;
     }
 
@@ -211,15 +246,15 @@ public class TicTacToeServer {
     public void broadcastMessage(String message) {
         for (ClientHandler handler : clients.values()) {
             if (handler != null) {
-                 handler.sendMessage(message);
+                handler.sendMessage(message);
             }
         }
     }
 
     public void broadcastChatMessage(Player senderSymbol, String senderName, String chatMessage) {
-        String fullMessage = "CHAT_MSG " + senderName + " ("+senderSymbol+"): " + chatMessage;
+        String fullMessage = "CHAT_MSG " + senderName + " (" + senderSymbol + "): " + chatMessage;
         for (ClientHandler handler : clients.values()) {
-             if (handler != null) {
+            if (handler != null) {
                 handler.sendMessage(fullMessage);
             }
         }
@@ -229,7 +264,7 @@ public class TicTacToeServer {
         if (handler == null) return;
         Player symbol = handler.getSymbol();
         clients.remove(symbol);
-        System.out.println("Клиент " + symbol + " ("+handler.getPlayerName()+") отключился.");
+        System.out.println("Клиент " + symbol + " (" + handler.getPlayerName() + ") отключился.");
         if (gameRunning) {
             gameRunning = false;
             clients.values().forEach(remainingHandler -> {
@@ -304,7 +339,6 @@ public class TicTacToeServer {
                             synchronized (server.clients) {
                                 if (server.clients.size() == 2) {
                                     ClientHandler otherHandler = server.clients.get(symbol.opposite());
-
                                     if (otherHandler != null && !otherHandler.getPlayerName().equals("Аноним")) {
                                         otherHandler.sendMessage("OPPONENT_CONNECTED " + this.playerName);
                                         this.sendMessage("OPPONENT_CONNECTED " + otherHandler.getPlayerName());
@@ -312,8 +346,6 @@ public class TicTacToeServer {
                                             server.startGameProcedure();
                                         }
                                     }
-
-
                                 }
                             }
                             break;
